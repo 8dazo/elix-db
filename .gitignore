@@ -1,0 +1,6 @@
+# OS
+.DS_Store
+
+# Elixir (paths under elix_db/ are in elix_db/.gitignore)
+erl_crash.dump
+*.ez

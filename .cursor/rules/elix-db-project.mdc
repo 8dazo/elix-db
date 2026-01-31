@@ -1,0 +1,20 @@
+---
+description: Project identity and always-on vector DB skills for elix-db
+alwaysApply: true
+---
+
+# elix-db Project
+
+**Project name:** elix-db
+
+This repo is an Elixir vector database. When implementing or changing vector storage, similarity search, embeddings, or persistence:
+
+1. **Apply** the project skills in `.cursor/skills/`:
+   - **vector-db-elixir** – core operations (insert, search, delete), workflow, stack choices
+   - **elixir-vector-patterns** – GenServer + ETS, Nx/Scholar distance, supervision
+   - **vector-db-storage** – backends (ETS, file, pgvector), exact vs approximate k-NN
+   - **debug-verify-benchmark** – after each plan step: run tests, verify, compare to Qdrant/Milvus/pgvector; capture metrics
+
+2. **Use** the app/module name `ElixDb` (e.g. `ElixDb.VectorStore`, `ElixDb.Application`).
+
+3. **Keep** vector dimension, distance metric, and persistence strategy consistent across the codebase.
