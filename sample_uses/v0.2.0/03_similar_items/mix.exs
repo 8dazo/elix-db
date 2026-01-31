@@ -18,7 +18,7 @@ defmodule SimilarItems.MixProject do
 
   defp deps do
     [
-      {:elix_db, "~> 0.2.0"}
+      {:elix_db, path: "../../../elix_db"}
     ]
   end
 end

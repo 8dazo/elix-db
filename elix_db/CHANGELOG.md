@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Search: batch Nx similarity (`Similarity.cosine_batch/2`, `dot_product_batch/2`, `l2_batch/2`) for faster exact k-NN; Store search uses batch APIs
+- HTTP: OpenAPI 3.0 spec at `GET /openapi.json`; `priv/openapi.json` documents all endpoints
+- Stress tests: `test/stress_test.exs` at 10k vectors (tag `:stress`); run with `mix test test/stress_test.exs` or exclude with `--exclude stress`
+
 ## [0.2.0] - 2025-01-31
 
 ### Added

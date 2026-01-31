@@ -141,14 +141,17 @@ defmodule ElixDb.Store do
           distance_threshold = Keyword.get(opts, :distance_threshold)
           points = :ets.tab2list(table)
           points = if filter == %{}, do: points, else: Enum.filter(points, fn {_id, _vec, payload} -> payload_matches?(payload, filter) end)
-          scored = Enum.map(points, fn {id, vec, payload} ->
-            score = case coll.distance_metric do
-              :cosine -> ElixDb.Similarity.cosine(query_vector, vec)
-              :l2 -> ElixDb.Similarity.l2_distance(query_vector, vec)
-              :dot_product -> ElixDb.Similarity.dot_product(query_vector, vec)
+          scored = if points == [] do
+            []
+          else
+            vecs = Enum.map(points, fn {_id, vec, _} -> vec end)
+            scores = case coll.distance_metric do
+              :cosine -> ElixDb.Similarity.cosine_batch(query_vector, vecs)
+              :l2 -> ElixDb.Similarity.l2_batch(query_vector, vecs)
+              :dot_product -> ElixDb.Similarity.dot_product_batch(query_vector, vecs)
             end
-            {id, score, vec, payload}
-          end)
+            points |> Enum.zip(scores) |> Enum.map(fn {{id, vec, payload}, score} -> {id, score, vec, payload} end)
+          end
           sorted = case coll.distance_metric do
             :cosine -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :desc)
             :l2 -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :asc)

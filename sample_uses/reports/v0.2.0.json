@@ -1,10 +1,30 @@
 {
-  "timestamp": "2026-01-31T05:20:05.755550Z",
+  "timestamp": "2026-01-31T05:30:29.945693Z",
   "use_cases": {
-  "01_simple_search": null,
-  "02_semantic_faq": null,
-  "03_similar_items": null,
-  "04_persistence": null
+  "01_simple_search": {
+  "inserts": 3,
+  "memory_bytes": 472582,
+  "searches": 5,
+  "wall_us": 9824
+},
+  "02_semantic_faq": {
+  "inserts": 3,
+  "memory_bytes": 435651,
+  "searches": 5,
+  "wall_us": 8552
+},
+  "03_similar_items": {
+  "inserts": 4,
+  "memory_bytes": 469414,
+  "searches": 4,
+  "wall_us": 7107
+},
+  "04_persistence": {
+  "inserts": 2,
+  "memory_bytes": 452296,
+  "searches": 3,
+  "wall_us": 7497
+}
 },
   "version": "v0.2.0"
 }

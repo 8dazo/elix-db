@@ -25,7 +25,7 @@ Default: 1000 vectors, dimension 64, k=10. Reports mean, p50, p99 (ms) and QPS f
 | 2k | 32 | 10 | (verification test) | — | — | — |
 
 - **Insert:** O(1) per point; very high QPS. Batch upsert available.
-- **Search:** Exact k-NN is O(n) per query; search latency scales linearly with collection size. At 10k vectors expect ~900 ms/query; at 100k, ~9 s/query.
+- **Search:** Exact k-NN is O(n) per query; search uses batch Nx similarity (matrix-vector) for lower per-point overhead. Latency scales with collection size; stress test at 10k vectors validates correctness and latency (see `mix test test/stress_test.exs`).
 
 ## Comparison vs industry
 

@@ -9,6 +9,15 @@ defmodule ElixDb.HttpRouter do
 
   def init(opts), do: opts
 
+  # GET /openapi.json
+  get "/openapi.json" do
+    path = Path.join(:code.priv_dir(:elix_db), "openapi.json")
+    body = File.read!(path)
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, body)
+  end
+
   # GET /health
   get "/health" do
     status = %{status: "ok", store: Process.whereis(ElixDb.Store) != nil, registry: Process.whereis(ElixDb.CollectionRegistry) != nil}

@@ -2,7 +2,7 @@ defmodule ElixDb.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/8dazo/elix-db"
-  @version "0.1.0"
+  @version "0.2.0"
 
   def project do
     [
@@ -34,7 +34,7 @@ defmodule ElixDb.MixProject do
         "GitHub" => @source_url,
         "Changelog" => @source_url <> "/blob/main/elix_db/CHANGELOG.md"
       },
-      files: ~w(lib .formatter.exs mix.exs mix.lock README.md LICENSE CHANGELOG.md)
+      files: ~w(lib priv .formatter.exs mix.exs mix.lock README.md LICENSE CHANGELOG.md)
     ]
   end
 

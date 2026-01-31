@@ -1,9 +1,9 @@
-defmodule SimpleSearch.MixProject do
+defmodule SemanticFaq.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :simple_search,
+      app: :semantic_faq,
       version: "0.1.0",
       elixir: "~> 1.19",
       deps: deps()
@@ -18,8 +18,7 @@ defmodule SimpleSearch.MixProject do
 
   defp deps do
     [
-      # Use path when running from repo (before publishing); or "~> 0.2.0" from Hex
-      {:elix_db, path: "../../../elix_db"}
+      {:elix_db, "~> 0.1.0"}
     ]
   end
 end
