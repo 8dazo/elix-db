@@ -8,16 +8,15 @@ A small **vector database** written in Elixir: collections, points (upsert / get
 
 ---
 
-## Maintainer / Author
+## Links
 
-- **GitHub:** [8dazo](https://github.com/8dazo)
-- **Repository:** [github.com/8dazo/elix-db](https://github.com/8dazo/elix-db)
-- **Hex package:** [hex.pm/packages/elix_db](https://hex.pm/packages/elix_db) *(after first publish)*
-- **Docs:** [hexdocs.pm/elix_db](https://hexdocs.pm/elix_db) *(after first publish)*
+- **GitHub:** [github.com/8dazo/elix-db](https://github.com/8dazo/elix-db)
+- **Hex:** [hex.pm/packages/elix_db](https://hex.pm/packages/elix_db)
+- **Docs:** [hexdocs.pm/elix_db](https://hexdocs.pm/elix_db)
 
 ---
 
-## Install (after published to Hex)
+## Install
 
 Add `elix_db` to your list of dependencies in `mix.exs`:
 
@@ -111,32 +110,6 @@ Reports insert/search latency and QPS (default: 1000 vectors, dim 64, k=10). See
 
 - **Good for:** Small to medium vector sets (e.g. &lt; 50k–100k vectors), prototypes, internal tools, exact k-NN.
 - **Not for:** Millions of vectors with sub-ms search (no approximate index; search is O(n)). For that, consider pgvector, Qdrant, or Milvus.
-
----
-
-## For maintainers: publish to Hex (production)
-
-1. **Register on Hex** (once):
-   ```bash
-   cd elix_db
-   mix hex.user register
-   ```
-   Use your Hex username, email, and password. Confirm email.
-
-2. **Publish package and docs**:
-   ```bash
-   cd elix_db
-   mix deps.get
-   mix hex.publish
-   ```
-   Confirm the list of files and version; Hex will build docs with ExDoc and publish to [hex.pm](https://hex.pm/packages/elix_db).
-
-3. **After first publish:**
-   - Package: [https://hex.pm/packages/elix_db](https://hex.pm/packages/elix_db)
-   - Docs: [https://hexdocs.pm/elix_db](https://hexdocs.pm/elix_db)
-   - Badges and links in this README will work; users can add `{:elix_db, "~> 0.1.0"}` to their `mix.exs`.
-
-4. **Later releases:** Bump `version` in `elix_db/mix.exs`, add an entry to `elix_db/CHANGELOG.md`, then run `mix hex.publish` again from `elix_db/`.
 
 ---
 

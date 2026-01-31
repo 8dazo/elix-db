@@ -8,10 +8,9 @@ Elixir vector database: collections, points (upsert/get/delete), **exact k-NN se
 
 ---
 
-## Maintainer / Author
+## Links
 
-- **GitHub:** [8dazo](https://github.com/8dazo)
-- **Repository:** [github.com/8dazo/elix-db](https://github.com/8dazo/elix-db)
+- **GitHub:** [github.com/8dazo/elix-db](https://github.com/8dazo/elix-db)
 - **Hex:** [hex.pm/packages/elix_db](https://hex.pm/packages/elix_db)
 - **Docs:** [hexdocs.pm/elix_db](https://hexdocs.pm/elix_db)
 
@@ -53,14 +52,6 @@ ElixDb.Store.upsert(ElixDb.Store, "my_coll", "p1", [1.0, 0.0, 0.0], %{})
 ```
 
 See the [project README](https://github.com/8dazo/elix-db) for HTTP API, benchmark, and full docs.
-
----
-
-## For maintainers: publish to Hex
-
-1. Register: `mix hex.user register` (once).
-2. From this directory: `mix hex.publish` (publishes package + docs).
-3. After publish, package and docs are at [hex.pm/packages/elix_db](https://hex.pm/packages/elix_db) and [hexdocs.pm/elix_db](https://hexdocs.pm/elix_db).
 
 ---
 

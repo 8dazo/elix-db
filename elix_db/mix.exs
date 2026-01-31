@@ -33,7 +33,8 @@ defmodule ElixDb.MixProject do
       links: %{
         "GitHub" => @source_url,
         "Changelog" => @source_url <> "/blob/main/elix_db/CHANGELOG.md"
-      }
+      },
+      files: ~w(lib .formatter.exs mix.exs mix.lock README.md LICENSE CHANGELOG.md)
     ]
   end
 

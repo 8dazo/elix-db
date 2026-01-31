@@ -1,8 +1,9 @@
 defmodule ElixDbTest do
-  use ExUnit.Case
-  doctest ElixDb
+  use ExUnit.Case, async: true
 
-  test "greets the world" do
-    assert ElixDb.hello() == :world
+  test "application and core modules are available" do
+    assert Code.ensure_loaded?(ElixDb)
+    assert Code.ensure_loaded?(ElixDb.Store)
+    assert Code.ensure_loaded?(ElixDb.CollectionRegistry)
   end
 end
