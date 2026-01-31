@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-01-31T05:19:50.321523Z",
+  "use_cases": {
+  "01_simple_search": {
+  "inserts": 3,
+  "memory_bytes": 2492073,
+  "searches": 5,
+  "wall_us": 29186
+},
+  "02_semantic_faq": {
+  "inserts": 3,
+  "memory_bytes": 2495199,
+  "searches": 5,
+  "wall_us": 28742
+},
+  "03_similar_items": {
+  "inserts": 4,
+  "memory_bytes": 2514361,
+  "searches": 4,
+  "wall_us": 87992
+},
+  "04_persistence": {
+  "inserts": 2,
+  "memory_bytes": 2526341,
+  "searches": 3,
+  "wall_us": 26124
+}
+},
+  "version": "v0.1.0"
+}

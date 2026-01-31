@@ -4,16 +4,17 @@ defmodule ElixDb.CollectionRegistry do
   """
   use GenServer
 
-  @allowed_metrics [:cosine, :l2]
+  @allowed_metrics [:cosine, :dot_product, :l2]
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, [], name: name)
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @impl true
-  def init(_) do
-    {:ok, %{}}
+  def init(opts) do
+    state = %{collections: %{}, store: Keyword.get(opts, :store)}
+    {:ok, state}
   end
 
   def create_collection(server \\ __MODULE__, name, dimension, metric)
@@ -39,7 +40,7 @@ defmodule ElixDb.CollectionRegistry do
 
   @impl true
   def handle_call({:create, name, dimension, metric}, _from, state) do
-    if Map.has_key?(state, name) do
+    if Map.has_key?(state.collections, name) do
       {:reply, {:error, :already_exists}, state}
     else
       collection = %ElixDb.Collection{
@@ -47,25 +48,29 @@ defmodule ElixDb.CollectionRegistry do
         dimension: dimension,
         distance_metric: metric
       }
-      {:reply, {:ok, collection}, Map.put(state, name, collection)}
+      new_state = %{state | collections: Map.put(state.collections, name, collection)}
+      {:reply, {:ok, collection}, new_state}
     end
   end
 
   @impl true
   def handle_call(:list, _from, state) do
-    {:reply, Map.values(state), state}
+    {:reply, Map.values(state.collections), state}
   end
 
   @impl true
   def handle_call({:get, name}, _from, state) do
-    {:reply, Map.get(state, name), state}
+    {:reply, Map.get(state.collections, name), state}
   end
 
   @impl true
   def handle_call({:delete, name}, _from, state) do
-    case Map.pop(state, name) do
+    case Map.pop(state.collections, name) do
       {nil, _} -> {:reply, {:error, :not_found}, state}
-      {_coll, new_state} -> {:reply, :ok, new_state}
+      {_coll, collections} ->
+        new_state = %{state | collections: collections}
+        if store = state.store, do: if(pid = Process.whereis(store), do: GenServer.call(pid, {:delete_collection, name}))
+        {:reply, :ok, new_state}
     end
   end
 end

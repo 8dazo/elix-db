@@ -14,6 +14,7 @@ This repo is an Elixir vector database. When implementing or changing vector sto
    - **elixir-vector-patterns** – GenServer + ETS, Nx/Scholar distance, supervision
    - **vector-db-storage** – backends (ETS, file, pgvector), exact vs approximate k-NN
    - **debug-verify-benchmark** – after each plan step: run tests, verify, compare to Qdrant/Milvus/pgvector; capture metrics
+   - **versioned-sample-uses** – when publishing or changing version: run sample use cases for the new version, compare to previous report, update `sample_uses/reports/`; remember memory, time, latency across versions
 
 2. **Use** the app/module name `ElixDb` (e.g. `ElixDb.VectorStore`, `ElixDb.Application`).
 

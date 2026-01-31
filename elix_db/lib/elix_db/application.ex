@@ -10,7 +10,7 @@ defmodule ElixDb.Application do
     port = Application.get_env(:elix_db, :http_port, 4000)
     children = [
       ElixDb.Metrics,
-      ElixDb.CollectionRegistry,
+      {ElixDb.CollectionRegistry, [store: ElixDb.Store]},
       {ElixDb.Store, [registry: ElixDb.CollectionRegistry]},
       {Plug.Cowboy, scheme: :http, plug: ElixDb.HttpRouter, options: [port: port]}
     ]

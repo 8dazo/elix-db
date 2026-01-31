@@ -5,7 +5,7 @@ defmodule ElixDb.Collection do
   @enforce_keys [:name, :dimension, :distance_metric]
   defstruct [:name, :dimension, :distance_metric]
 
-  @type distance_metric :: :cosine | :l2
+  @type distance_metric :: :cosine | :dot_product | :l2
   @type t :: %__MODULE__{
           name: String.t(),
           dimension: pos_integer(),

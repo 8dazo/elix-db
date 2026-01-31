@@ -1,1 +1,0 @@
-{application,semantic_faq,[{modules,['Elixir.SemanticFaq']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,elix_db]},{description,"semantic_faq"},{registered,[]},{vsn,"0.1.0"}]}.

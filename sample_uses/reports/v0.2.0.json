@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-01-31T05:20:05.755550Z",
+  "use_cases": {
+  "01_simple_search": null,
+  "02_semantic_faq": null,
+  "03_similar_items": null,
+  "04_persistence": null
+},
+  "version": "v0.2.0"
+}

@@ -44,4 +44,43 @@ defmodule ElixDb.SearchTest do
   test "search collection_not_found", %{store: store} do
     assert ElixDb.Store.search(store, "missing", [1, 2, 3], 5) == {:error, :collection_not_found}
   end
+
+  test "search with filter: only points matching payload are considered", %{store: store, registry: reg} do
+    ElixDb.CollectionRegistry.create_collection(reg, "filter_coll", 2, :cosine)
+    ElixDb.Store.upsert(store, "filter_coll", "a", [1.0, 0.0], %{status: "active"})
+    ElixDb.Store.upsert(store, "filter_coll", "b", [1.0, 0.0], %{status: "archived"})
+    ElixDb.Store.upsert(store, "filter_coll", "c", [0.9, 0.1], %{status: "active"})
+    assert {:ok, results} = ElixDb.Store.search(store, "filter_coll", [1.0, 0.0], 5, filter: %{status: "active"})
+    ids = Enum.map(results, & &1.id) |> Enum.sort()
+    assert ids == ["a", "c"]
+  end
+
+  test "search with score_threshold (cosine): only scores >= threshold", %{store: store, registry: reg} do
+    ElixDb.CollectionRegistry.create_collection(reg, "th_coll", 2, :cosine)
+    ElixDb.Store.upsert(store, "th_coll", "p1", [1.0, 0.0], %{})
+    ElixDb.Store.upsert(store, "th_coll", "p2", [0.9, 0.1], %{})
+    ElixDb.Store.upsert(store, "th_coll", "p3", [0.0, 1.0], %{})
+    assert {:ok, results} = ElixDb.Store.search(store, "th_coll", [1.0, 0.0], 5, score_threshold: 0.95)
+    assert length(results) == 2
+    assert hd(results).id == "p1"
+  end
+
+  test "search with distance_threshold (l2): only distance <= threshold", %{store: store, registry: reg} do
+    ElixDb.CollectionRegistry.create_collection(reg, "l2_th", 2, :l2)
+    ElixDb.Store.upsert(store, "l2_th", "a", [1.0, 0.0], %{})
+    ElixDb.Store.upsert(store, "l2_th", "b", [1.0, 0.1], %{})
+    ElixDb.Store.upsert(store, "l2_th", "c", [2.0, 0.0], %{})
+    assert {:ok, results} = ElixDb.Store.search(store, "l2_th", [1.0, 0.0], 5, distance_threshold: 0.2)
+    assert length(results) <= 2
+    assert Enum.all?(results, fn r -> r.score <= 0.2 end)
+  end
+
+  test "search dot_product collection", %{store: store, registry: reg} do
+    ElixDb.CollectionRegistry.create_collection(reg, "dot_coll", 3, :dot_product)
+    ElixDb.Store.upsert(store, "dot_coll", "p1", [1.0, 0.0, 0.0], %{})
+    ElixDb.Store.upsert(store, "dot_coll", "p2", [0.5, 0.5, 0.0], %{})
+    assert {:ok, [first | _]} = ElixDb.Store.search(store, "dot_coll", [1.0, 0.0, 0.0], 2)
+    assert first.id == "p1"
+    assert first.score == 1.0
+  end
 end

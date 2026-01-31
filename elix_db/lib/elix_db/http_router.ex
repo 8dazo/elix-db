@@ -9,6 +9,12 @@ defmodule ElixDb.HttpRouter do
 
   def init(opts), do: opts
 
+  # GET /health
+  get "/health" do
+    status = %{status: "ok", store: Process.whereis(ElixDb.Store) != nil, registry: Process.whereis(ElixDb.CollectionRegistry) != nil}
+    send_resp(conn, 200, Jason.encode!(status))
+  end
+
   # POST /collections
   post "/collections" do
     case conn.body_params do
@@ -49,6 +55,25 @@ defmodule ElixDb.HttpRouter do
     end
   end
 
+  # POST /collections/:name/points/batch
+  post "/collections/:name/points/batch" do
+    name = conn.path_params["name"]
+    case conn.body_params do
+      %{"points" => points} when is_list(points) ->
+        parsed = Enum.map(points, fn p ->
+          id = p["id"]
+          vec = (p["vector"] || []) |> Enum.map(&maybe_float/1)
+          payload = Map.get(p, "payload", %{})
+          {id, vec, payload}
+        end)
+        case ElixDb.Store.upsert_batch(ElixDb.Store, name, parsed) do
+          :ok -> send_resp(conn, 200, Jason.encode!(%{ok: true}))
+          {:error, reason} -> send_resp(conn, 400, Jason.encode!(%{error: inspect(reason)}))
+        end
+      _ -> send_resp(conn, 400, Jason.encode!(%{error: "body must have points (array of {id, vector, payload?})"}))
+    end
+  end
+
   # PUT /collections/:name/points
   put "/collections/:name/points" do
     name = conn.path_params["name"]
@@ -71,7 +96,8 @@ defmodule ElixDb.HttpRouter do
       %{"vector" => vec} ->
         k = Map.get(conn.body_params, "k", 10)
         vec_list = Enum.map(vec, &maybe_float/1)
-        case ElixDb.Store.search(ElixDb.Store, name, vec_list, k, []) do
+        opts = search_opts_from_body(conn.body_params)
+        case ElixDb.Store.search(ElixDb.Store, name, vec_list, k, opts) do
           {:ok, results} -> send_resp(conn, 200, Jason.encode!(%{results: results}))
           {:error, reason} -> send_resp(conn, 400, Jason.encode!(%{error: inspect(reason)}))
         end
@@ -102,8 +128,19 @@ defmodule ElixDb.HttpRouter do
   end
 
   defp parse_metric("cosine"), do: :cosine
+  defp parse_metric("dot_product"), do: :dot_product
   defp parse_metric("l2"), do: :l2
   defp parse_metric(_), do: :cosine
+
+  defp search_opts_from_body(body) do
+    opts = []
+    opts = if Map.has_key?(body, "filter") and is_map(body["filter"]), do: Keyword.put(opts, :filter, body["filter"]), else: opts
+    opts = if Map.has_key?(body, "score_threshold"), do: Keyword.put(opts, :score_threshold, maybe_float(body["score_threshold"])), else: opts
+    opts = if Map.has_key?(body, "distance_threshold"), do: Keyword.put(opts, :distance_threshold, maybe_float(body["distance_threshold"])), else: opts
+    opts = if Map.has_key?(body, "with_payload"), do: Keyword.put(opts, :with_payload, body["with_payload"]), else: opts
+    opts = if Map.has_key?(body, "with_vector"), do: Keyword.put(opts, :with_vector, body["with_vector"]), else: opts
+    opts
+  end
 
   defp maybe_float(n) when is_number(n), do: n * 1.0
   defp maybe_float(n), do: String.to_float(to_string(n))

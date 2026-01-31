@@ -7,7 +7,7 @@ cd elix_db
 mix run script/bench.exs
 ```
 
-Default: 1000 vectors, dimension 64, k=10. Reports insert ms/op, insert QPS, search ms/op, search QPS.
+Default: 1000 vectors, dimension 64, k=10. Reports mean, p50, p99 (ms) and QPS for insert and search. Use `mix run script/bench.exs --json` for JSON output.
 
 ## Metrics to capture
 
@@ -51,9 +51,9 @@ Use same or similar workload for fair comparison. Plan improvements (e.g. approx
 
 **Gaps vs a “perfect” production DB:**
 - **Scale:** No approximate index (HNSW/IVFFlat). Search is O(n); not suitable for millions of vectors without an index.
-- **Persistence:** Single file, binary term; no WAL, no point-in-time recovery. Data at risk if process dies before `persist/1` or `terminate/2`.
-- **Observability:** Metrics module exists but is not wired into Store; benchmark script does not report p50/p99.
-- **API:** HTTP has no batch upsert endpoint, no auth, no rate limiting, no OpenAPI.
-- **Hardening:** No health endpoint, no stress tests at 100k+ vectors. Property-based tests (StreamData) cover upsert/get, search, delete, get_many, and collection creation.
+- **Persistence:** Single file, binary term; no WAL, no point-in-time recovery. Optional `persist_interval_sec` and `persist_after_batch` reduce the window of data loss.
+- **Observability:** Metrics are wired into Store; benchmark script reports mean, p50, p99; optional Telemetry events `[:elix_db, :store, operation]`.
+- **API:** HTTP has batch upsert (`POST .../points/batch`) and `GET /health`; no auth, no rate limiting, no OpenAPI.
+- **Hardening:** No stress tests at 100k+ vectors. Property-based tests (StreamData) cover upsert/get, search, delete, get_many, and collection creation.
 
 **Verdict:** elix-db is a **solid small-scale vector DB** with correct semantics and good test coverage, not just a toy. For production at large scale, add an approximate index and/or use pgvector/Qdrant/Milvus for big collections.
