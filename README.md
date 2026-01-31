@@ -105,6 +105,7 @@ Reports insert/search latency and QPS (default: 1000 vectors, dim 64, k=10). See
 | `elix_db/` | Mix application (lib, test, script, docs) |
 | `elix_db/lib/elix_db/` | Core modules: Application, CollectionRegistry, Store, Similarity, HttpRouter, Metrics |
 | `plan/` | Step-by-step build plan (scaffold → collections → points → search → get/delete → persistence → HTTP → metrics) |
+| `sample_uses/` | Independent Mix projects using ElixDb from Hex (simple search, semantic FAQ, similar items, persistence) |
 
 ## When to use
 

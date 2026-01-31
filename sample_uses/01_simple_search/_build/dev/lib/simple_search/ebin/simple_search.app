@@ -1,0 +1,1 @@
+{application,simple_search,[{modules,['Elixir.SimpleSearch']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,elix_db]},{description,"simple_search"},{registered,[]},{vsn,"0.1.0"}]}.

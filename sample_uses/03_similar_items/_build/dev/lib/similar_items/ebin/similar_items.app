@@ -1,0 +1,1 @@
+{application,similar_items,[{modules,['Elixir.SimilarItems']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,elix_db]},{description,"similar_items"},{registered,[]},{vsn,"0.1.0"}]}.

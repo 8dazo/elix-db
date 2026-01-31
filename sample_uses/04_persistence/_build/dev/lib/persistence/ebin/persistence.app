@@ -1,0 +1,1 @@
+{application,persistence,[{modules,['Elixir.Persistence']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,elix_db]},{description,"persistence"},{registered,[]},{vsn,"0.1.0"}]}.
