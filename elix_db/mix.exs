@@ -1,13 +1,39 @@
 defmodule ElixDb.MixProject do
   use Mix.Project
 
+  @source_url "https://github.com/8dazo/elix-db"
+  @version "0.1.0"
+
   def project do
     [
       app: :elix_db,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      description: description(),
+      package: package(),
+      deps: deps(),
+      name: "ElixDb",
+      source_url: @source_url,
+      homepage_url: @source_url,
+      docs: [
+        main: "readme",
+        extras: ["README.md"]
+      ]
+    ]
+  end
+
+  defp description do
+    "A small vector database in Elixir: collections, points (upsert/get/delete), exact k-NN search (cosine or L2), file persistence, and optional HTTP API."
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => @source_url <> "/blob/main/elix_db/CHANGELOG.md"
+      }
     ]
   end
 
@@ -26,7 +52,8 @@ defmodule ElixDb.MixProject do
       {:plug, "~> 1.16"},
       {:plug_cowboy, "~> 2.7"},
       {:jason, "~> 1.4"},
-      {:stream_data, "~> 1.0", only: :test}
+      {:stream_data, "~> 1.0", only: :test},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
 end

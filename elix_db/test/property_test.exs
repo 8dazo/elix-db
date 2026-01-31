@@ -91,9 +91,10 @@ defmodule ElixDb.PropertyTest do
   end
 
   property "create_collection duplicate name returns already_exists", %{registry: registry} do
-    check all name <- StreamData.string(:alphanumeric, min_length: 1),
+    check all suffix <- StreamData.string(:alphanumeric, min_length: 1),
               dim <- StreamData.integer(2..16) do
-      name = "coll_" <> name
+      # Unique name per run so first create always succeeds
+      name = "dup_" <> Integer.to_string(System.unique_integer([:positive])) <> "_" <> suffix
       assert {:ok, _} = ElixDb.CollectionRegistry.create_collection(registry, name, dim, :cosine)
       assert ElixDb.CollectionRegistry.create_collection(registry, name, dim + 1, :l2) == {:error, :already_exists}
     end
