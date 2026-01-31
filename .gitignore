@@ -13,6 +13,10 @@ data.elix_db
 **/data.elix_db
 *.log
 /tmp/
+elix_db/benchmarks/*.json
+elix_db/benchmarks/*_report.md
+elix_db/test_data_*.elix_db
+elix_db/test_stress_dazo_*.elix_db
 # sample_uses: build and deps (each use case is a Mix project)
 sample_uses/**/_build/
 sample_uses/**/deps/

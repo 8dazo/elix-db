@@ -1,10 +1,0 @@
-Generated elix_db app
-Running ExUnit with seed: 283161, max_cases: 1
-
-
-ElixDb.StressTest [test/stress_test.exs]
-  * test 10k vectors: batch upsert and search [L#46]  * test 10k vectors: batch upsert and search (887.9ms) [L#46]
-  * test 10k vectors: upsert, search correctness, and latency [L#22]  * test 10k vectors: upsert, search correctness, and latency (946.1ms) [L#22]
-
-Finished in 1.8 seconds (0.00s async, 1.8s sync)
-2 tests, 0 failures

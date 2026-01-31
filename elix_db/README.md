@@ -4,7 +4,7 @@
 [![HexDocs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/elix_db)
 [![GitHub stars](https://img.shields.io/github/stars/8dazo/elix-db.svg)](https://github.com/8dazo/elix-db)
 
-Elixir vector database: collections, points (upsert/get/delete), **exact k-NN search** (cosine or L2), file persistence, and optional HTTP API.
+Elixir vector database: collections, points (upsert/get/delete), **exact k-NN** (cosine, L2, dot product), optional **DAZO index** with **HNSW-style multi-layer graph** (Qdrant/Milvus-like) and **IVF coarse quantizer**, **Nx batch re-rank**, file persistence, and optional HTTP API.
 
 ---
 
@@ -49,9 +49,14 @@ ElixDb.CollectionRegistry.create_collection(ElixDb.CollectionRegistry, "my_coll"
 # Upsert and search
 ElixDb.Store.upsert(ElixDb.Store, "my_coll", "p1", [1.0, 0.0, 0.0], %{})
 {:ok, results} = ElixDb.Store.search(ElixDb.Store, "my_coll", [1.0, 0.0, 0.0], 5)
+
+# Build DAZO index for faster search (HNSW 500–5k vectors, IVF ≥5k; Nx batch re-rank)
+ElixDb.DazoIndex.build(ElixDb.DazoIndex, ElixDb.Store, "my_coll", registry: ElixDb.CollectionRegistry)
+# Options: full_scan_threshold (500), coarse_threshold (5k), m, ef_construct, ef
+# Force brute-force: Store.search(store, "my_coll", vector, k, brute_force: true)
 ```
 
-See the [project README](https://github.com/8dazo/elix-db) for HTTP API, benchmark, and full docs.
+See the [project README](https://github.com/8dazo/elix-db) for production status, HNSW/IVF details, HTTP API, benchmarks (`script/full_bench.exs --dazo`), and full docs.
 
 ---
 

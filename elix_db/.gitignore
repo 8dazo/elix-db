@@ -22,3 +22,11 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 elix_db-*.tar
 
+# Generated benchmark outputs (script/full_bench.exs, script/bench.exs)
+/benchmarks/*.json
+/benchmarks/*_report.md
+
+# Test artifacts (persistence / stress tests)
+test_data_*.elix_db
+test_stress_dazo_*.elix_db
+

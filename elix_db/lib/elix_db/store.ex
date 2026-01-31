@@ -9,6 +9,12 @@ defmodule ElixDb.Store do
   - `:distance_threshold` - for L2: only return points with distance <= threshold.
   - `:with_payload` - include payload in results (default true).
   - `:with_vector` - include vector in results (default false).
+  - `:ef` - when using DAZO index: search list size / candidate count for graph traversal (default max(k*3, 50)).
+  - `:brute_force` - if true, skip DAZO index and use exact brute-force search (default false).
+
+  By default, search uses the DAZO index when one exists for the collection (built via `DazoIndex.build/4`):
+  graph + Hamming on sketches + predicate pruning, then re-rank with full vectors. Pass `brute_force: true`
+  to force exact brute-force search. When no index exists, brute-force is used automatically.
   """
   use GenServer
 
@@ -16,17 +22,22 @@ defmodule ElixDb.Store do
     name = Keyword.get(opts, :name, __MODULE__)
     registry = Keyword.fetch!(opts, :registry)
     data_path = Keyword.get(opts, :data_path, Application.get_env(:elix_db, :data_path, "data.elix_db"))
-    GenServer.start_link(__MODULE__, [registry: registry, data_path: data_path], name: name)
+    dazo_index = Keyword.get(opts, :dazo_index, Application.get_env(:elix_db, :dazo_index, ElixDb.DazoIndex))
+    GenServer.start_link(__MODULE__, [registry: registry, data_path: data_path, my_name: name, dazo_index: dazo_index], name: name)
   end
 
   @impl true
   def init(opts) when is_list(opts) do
     registry = Keyword.fetch!(opts, :registry)
     data_path = Keyword.fetch!(opts, :data_path)
+    my_name = Keyword.fetch!(opts, :my_name)
+    dazo_index = Keyword.fetch!(opts, :dazo_index)
     state = %{
       registry: registry,
       tables: %{},
       data_path: data_path,
+      my_name: my_name,
+      dazo_index: dazo_index,
       persist_interval_sec: Application.get_env(:elix_db, :persist_interval_sec),
       persist_after_batch: Application.get_env(:elix_db, :persist_after_batch)
     }
@@ -74,6 +85,13 @@ defmodule ElixDb.Store do
 
   def delete_collection(server \\ __MODULE__, collection_name) do
     GenServer.call(server, {:delete_collection, collection_name})
+  end
+
+  @doc """
+  Returns all points for a collection as [{id, vector, payload}, ...] for index build.
+  """
+  def points_for_collection(server \\ __MODULE__, collection_name) do
+    GenServer.call(server, {:points_for_collection, collection_name})
   end
 
   @impl true
@@ -130,48 +148,31 @@ defmodule ElixDb.Store do
     result = case get_collection(state.registry, collection_name) do
       nil -> {:reply, {:error, :collection_not_found}, state}
       coll ->
-        table = state.tables[collection_name]
-        if table == nil do
-          {:reply, {:ok, []}, state}
+        # Default: use DAZO index when present. Pass brute_force: true to force exact brute-force.
+        idx = ElixDb.DazoIndex.get_index(state.dazo_index, collection_name)
+        ef = Keyword.get(opts, :ef, max(k * 3, 50))
+        force_brute = Keyword.get(opts, :brute_force, false)
+        dazo_result = if not force_brute and idx != nil and (idx[:thresholds] == nil or idx[:thresholds] == []) == false do
+          case ElixDb.DazoIndex.get_candidates(state.dazo_index, collection_name, query_vector, ef, opts) do
+            {:ok, candidate_ids} when candidate_ids != [] ->
+              points = fetch_points_by_ids(state, collection_name, candidate_ids)
+              rerank_and_format(points, query_vector, k, opts, coll.distance_metric)
+            {:ok, []} -> {:ok, []}
+            {:error, _} -> nil
+          end
         else
-          with_payload = Keyword.get(opts, :with_payload, true)
-          with_vector = Keyword.get(opts, :with_vector, false)
-          filter = Keyword.get(opts, :filter, %{})
-          score_threshold = Keyword.get(opts, :score_threshold)
-          distance_threshold = Keyword.get(opts, :distance_threshold)
-          points = :ets.tab2list(table)
-          points = if filter == %{}, do: points, else: Enum.filter(points, fn {_id, _vec, payload} -> payload_matches?(payload, filter) end)
-          scored = if points == [] do
-            []
-          else
-            vecs = Enum.map(points, fn {_id, vec, _} -> vec end)
-            scores = case coll.distance_metric do
-              :cosine -> ElixDb.Similarity.cosine_batch(query_vector, vecs)
-              :l2 -> ElixDb.Similarity.l2_batch(query_vector, vecs)
-              :dot_product -> ElixDb.Similarity.dot_product_batch(query_vector, vecs)
-            end
-            points |> Enum.zip(scores) |> Enum.map(fn {{id, vec, payload}, score} -> {id, score, vec, payload} end)
-          end
-          sorted = case coll.distance_metric do
-            :cosine -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :desc)
-            :l2 -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :asc)
-            :dot_product -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :desc)
-          end
-          sorted = apply_score_threshold(sorted, coll.distance_metric, score_threshold, distance_threshold)
-          results = sorted |> Enum.take(k) |> Enum.map(fn {id, score, vec, payload} ->
-            result = %{id: id, score: score}
-            result = if with_payload, do: Map.put(result, :payload, payload), else: result
-            result = if with_vector, do: Map.put(result, :vector, vec), else: result
-            result
-          end)
-          {:reply, {:ok, results}, state}
+          nil
+        end
+        if dazo_result != nil do
+          record_timing(:search, start)
+          {:reply, dazo_result, state}
+        else
+          do_brute_force_search(collection_name, query_vector, k, opts, state, start)
         end
     end
-    record_timing(:search, start)
     result
   end
 
-  @impl true
   def handle_call({:get, collection_name, id, opts}, _from, state) do
     start = System.monotonic_time(:microsecond)
     with_payload = Keyword.get(opts, :with_payload, true)
@@ -262,6 +263,16 @@ defmodule ElixDb.Store do
   end
 
   @impl true
+  def handle_call({:points_for_collection, collection_name}, _from, state) do
+    case state.tables[collection_name] do
+      nil -> {:reply, {:error, :collection_not_found}, state}
+      table ->
+        points = :ets.tab2list(table) |> Enum.map(fn {id, vec, payload} -> {id, vec, payload || %{}} end)
+        {:reply, {:ok, points}, state}
+    end
+  end
+
+  @impl true
   def handle_call({:delete_collection, collection_name}, _from, state) do
     new_state = case Map.pop(state.tables, collection_name) do
       {nil, _} -> state
@@ -287,9 +298,14 @@ defmodule ElixDb.Store do
       nil -> {:reply, {:error, :collection_not_found}, state}
       coll ->
         dim = coll.dimension
-        parsed = Enum.map(points, fn {id, vector, payload} ->
-          vec_list = ensure_list(vector)
-          if length(vec_list) != dim, do: {:error, {:invalid_dimension, id}}, else: {:ok, id, vec_list, payload || %{}}
+        parsed = Enum.map(points, fn
+          {id, vector, payload} when is_list(vector) or is_binary(vector) ->
+            vec_list = ensure_list(vector)
+            if length(vec_list) != dim, do: {:error, {:invalid_dimension, id}}, else: {:ok, id, vec_list, payload || %{}}
+          {id, _vector, _payload} ->
+            {:error, {:invalid_point_format, id}}
+          point ->
+            {:error, {:invalid_point_format, inspect(point)}}
         end)
         errors = Enum.filter(parsed, &match?({:error, _}, &1))
         if errors != [] do
@@ -360,6 +376,102 @@ defmodule ElixDb.Store do
     Enum.filter(sorted, fn {_, distance, _, _} -> distance <= threshold end)
   end
   defp apply_score_threshold(sorted, _metric, _st, _dt), do: sorted
+
+  defp fetch_points_by_ids(state, collection_name, ids) do
+    table = state.tables[collection_name]
+    if table == nil do
+      []
+    else
+      Enum.flat_map(ids, fn id ->
+        case :ets.lookup(table, id) do
+          [] -> []
+          [{^id, vec, payload}] -> [{id, vec, payload || %{}}]
+        end
+      end)
+    end
+  end
+
+  defp rerank_and_format(points, query_vector, k, opts, metric) do
+    with_payload = Keyword.get(opts, :with_payload, true)
+    with_vector = Keyword.get(opts, :with_vector, false)
+    filter = Keyword.get(opts, :filter, %{})
+    score_threshold = Keyword.get(opts, :score_threshold)
+    distance_threshold = Keyword.get(opts, :distance_threshold)
+    # Nx batch re-rank: single batch distance call for all candidates (faster than per-point)
+    scored = if points == [] do
+      []
+    else
+      vecs = Enum.map(points, fn {_id, vec, _} -> vec end)
+      scores = case metric do
+        :cosine -> ElixDb.Similarity.cosine_batch(query_vector, vecs)
+        :l2 -> ElixDb.Similarity.l2_batch(query_vector, vecs)
+        :dot_product -> ElixDb.Similarity.dot_product_batch(query_vector, vecs)
+      end
+      points |> Enum.zip(scores) |> Enum.map(fn {{id, vec, payload}, score} -> {id, score, vec, payload} end)
+    end
+    scored = if map_size(filter) == 0 do
+      scored
+    else
+      Enum.filter(scored, fn {_id, _s, _v, payload} -> payload_matches?(payload, filter) end)
+    end
+    sorted = case metric do
+      :cosine -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :desc)
+      :l2 -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :asc)
+      :dot_product -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :desc)
+    end
+    sorted = apply_score_threshold(sorted, metric, score_threshold, distance_threshold)
+    results = sorted |> Enum.take(k) |> Enum.map(fn {id, score, vec, payload} ->
+      result = %{id: id, score: score}
+      result = if with_payload, do: Map.put(result, :payload, payload), else: result
+      result = if with_vector, do: Map.put(result, :vector, vec), else: result
+      result
+    end)
+    {:ok, results}
+  end
+
+  defp do_brute_force_search(collection_name, query_vector, k, opts, state, start) do
+    coll = get_collection(state.registry, collection_name)
+    table = state.tables[collection_name]
+    if table == nil do
+      record_timing(:search, start)
+      {:reply, {:ok, []}, state}
+    else
+      with_payload = Keyword.get(opts, :with_payload, true)
+      with_vector = Keyword.get(opts, :with_vector, false)
+      filter = Keyword.get(opts, :filter, %{})
+      score_threshold = Keyword.get(opts, :score_threshold)
+      distance_threshold = Keyword.get(opts, :distance_threshold)
+      points = :ets.tab2list(table)
+      points = if filter == %{}, do: points, else: Enum.filter(points, fn {_id, _vec, payload} -> payload_matches?(payload, filter) end)
+      scored = if points == [] do
+        []
+      else
+        vecs = Enum.map(points, fn {_id, vec, _} -> vec end)
+        # Pass list or pre-built Nx tensor; tensor path avoids list-of-lists allocation
+        matrix = Nx.tensor(vecs, type: {:f, 32})
+        scores = case coll.distance_metric do
+          :cosine -> ElixDb.Similarity.cosine_batch(query_vector, matrix)
+          :l2 -> ElixDb.Similarity.l2_batch(query_vector, matrix)
+          :dot_product -> ElixDb.Similarity.dot_product_batch(query_vector, matrix)
+        end
+        points |> Enum.zip(scores) |> Enum.map(fn {{id, vec, payload}, score} -> {id, score, vec, payload} end)
+      end
+      sorted = case coll.distance_metric do
+        :cosine -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :desc)
+        :l2 -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :asc)
+        :dot_product -> Enum.sort_by(scored, fn {_, s, _, _} -> s end, :desc)
+      end
+      sorted = apply_score_threshold(sorted, coll.distance_metric, score_threshold, distance_threshold)
+      results = sorted |> Enum.take(k) |> Enum.map(fn {id, score, vec, payload} ->
+        result = %{id: id, score: score}
+        result = if with_payload, do: Map.put(result, :payload, payload), else: result
+        result = if with_vector, do: Map.put(result, :vector, vec), else: result
+        result
+      end)
+      record_timing(:search, start)
+      {:reply, {:ok, results}, state}
+    end
+  end
 
   defp ensure_list(vec) when is_list(vec), do: vec
   defp ensure_list(vec) when is_binary(vec), do: :erlang.binary_to_list(vec)

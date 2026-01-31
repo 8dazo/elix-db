@@ -4,7 +4,7 @@
 [![HexDocs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/elix_db)
 [![GitHub stars](https://img.shields.io/github/stars/8dazo/elix-db.svg)](https://github.com/8dazo/elix-db)
 
-A small **vector database** written in Elixir: collections, points (upsert / get / delete), **exact k-NN search** (cosine or L2), file persistence, and an optional HTTP API.
+A small **vector database** written in Elixir: collections, points (upsert / get / delete), **exact k-NN search** (cosine, L2, or dot product), optional **DAZO index** with **HNSW-style multi-layer graph** (Qdrant/Milvus-like) and **IVF coarse quantizer** for faster approximate search, **Nx batch re-rank**, file persistence, and an optional HTTP API.
 
 ---
 
@@ -34,12 +34,16 @@ Then run `mix deps.get`. Full API docs: [hexdocs.pm/elix_db](https://hexdocs.pm/
 
 ## Features
 
-- **Collections** – Create named collections with fixed dimension and distance metric (`cosine` or `l2`).
+- **Collections** – Create named collections with fixed dimension and distance metric (`cosine`, `l2`, or `dot_product`).
 - **Points** – Upsert (single or batch), get, get_many, delete, delete_by_filter. Optional payload (map) per point.
-- **Search** – Exact k-NN similarity search with cosine or L2; returns top-k points with scores.
-- **Persistence** – Single-file save/load on disk; load on startup.
+- **Search** – Exact k-NN (brute-force) or **DAZO index**:
+  - **full_scan_threshold** (default 500): below this many vectors, no index is built; search is brute-force (Qdrant-style).
+  - **HNSW-style multi-layer graph** (500–5k vectors): Qdrant/Milvus-like algorithm (M, ef_construct, ef); entry → descend → search_on_level; full-vector distance.
+  - **IVF coarse quantizer** (≥5k vectors): k-means on 32-bit sketches → nprobe buckets → re-rank.
+  - **Nx batch re-rank** for all DAZO paths; filter, score/distance thresholds, `ef`, `nprobe`.
+- **Persistence** – Single-file save/load for Store and DAZO index; load on startup.
 - **HTTP API** – Optional Plug/Cowboy server for REST-style access (create collection, upsert, search, get, delete).
-- **Tests** – Unit tests, property-based tests (StreamData), and verification tests at 2k vectors and concurrent readers.
+- **Tests** – Unit tests, property-based tests (StreamData), DAZO tests (EAB, Graph, HnswGraph, CoarseQuantizer, DazoIndex), verification and stress tests (10k vectors).
 
 ## Requirements
 
@@ -69,9 +73,14 @@ ElixDb.CollectionRegistry.create_collection(ElixDb.CollectionRegistry, "my_coll"
 ElixDb.Store.upsert(ElixDb.Store, "my_coll", "p1", [1.0, 0.0, 0.0], %{label: "x"})
 ElixDb.Store.upsert(ElixDb.Store, "my_coll", "p2", [0.0, 1.0, 0.0], %{})
 
-# Search
+# Search: uses DAZO index by default when one exists; otherwise brute-force
 {:ok, results} = ElixDb.Store.search(ElixDb.Store, "my_coll", [1.0, 0.0, 0.0], 5)
 # => [%{id: "p1", score: 1.0, payload: ...}, ...]
+
+# Build DAZO index for faster search (HNSW for 500–5k vectors, IVF for larger; Nx batch re-rank)
+ElixDb.DazoIndex.build(ElixDb.DazoIndex, ElixDb.Store, "my_coll", registry: ElixDb.CollectionRegistry)
+# Options: full_scan_threshold (default 500), coarse_threshold (5k), m, ef_construct, ef
+# To force brute-force: Store.search(store, "my_coll", vector, k, brute_force: true)
 
 # Get / delete
 ElixDb.Store.get(ElixDb.Store, "my_coll", "p1")
@@ -94,23 +103,37 @@ Start the app with the HTTP router mounted (see `elix_db/lib/elix_db/application
 ```bash
 cd elix_db
 mix run script/bench.exs
+mix run script/full_bench.exs --dazo --n 500   # full functionality + DAZO (HNSW/IVF) + comparison table
 ```
 
-Reports insert/search latency and QPS (default: 1000 vectors, dim 64, k=10). See `elix_db/docs/benchmarks.md` for numbers and comparison notes.
+Reports insert/search latency and QPS (default: 1000 vectors, dim 64, k=10). With `--dazo`, builds a DAZO index (HNSW or IVF by n) and reports search with Nx batch re-rank. See `elix_db/docs/benchmarks.md` for numbers and comparison vs Qdrant/Milvus.
 
 ## Project layout
 
 | Path | Description |
 |------|-------------|
 | `elix_db/` | Mix application (lib, test, script, docs) |
-| `elix_db/lib/elix_db/` | Core modules: Application, CollectionRegistry, Store, Similarity, HttpRouter, Metrics |
-| `plan/` | Step-by-step build plan (scaffold → collections → points → search → get/delete → persistence → HTTP → metrics) |
-| `sample_uses/` | Versioned sample use cases (v0.1.0, v0.2.0, …); same cases per version for benchmark and comparison reports (see sample_uses/README.md) |
+| `elix_db/lib/elix_db/` | Core: Application, CollectionRegistry, Store, Similarity, HttpRouter, Metrics; **DazoIndex**; **dazo/** (EAB, **HnswGraph**, Graph, CoarseQuantizer, PredicateMask) |
+| `DAZO.md` | DAZO design: full_scan_threshold, HNSW (M/ef_construct/ef), IVF, Nx batch re-rank; elix-db integration |
+| `elix_db/docs/` | benchmarks.md, performance.md, elix-db-vs-qdrant.md |
+| `plan/` | Step-by-step build plan |
+| `sample_uses/` | Versioned sample use cases; see sample_uses/README.md |
 
-## When to use
+## Production status and limitations
 
-- **Good for:** Small to medium vector sets (e.g. &lt; 50k–100k vectors), prototypes, internal tools, exact k-NN.
-- **Not for:** Millions of vectors with sub-ms search (no approximate index; search is O(n)). For that, consider pgvector, Qdrant, or Milvus.
+**Production readiness:** Suitable for **small to medium** workloads (e.g. &lt; 50k–100k vectors per collection), prototypes, and internal tools. Not aimed at billion-scale or sub-ms SLA at very large n.
+
+**Limitations:**
+
+- **Scale:** If n ≤ `full_scan_threshold` (500), no index is built and search is O(n) brute-force. With DAZO: HNSW (500–5k vectors) or IVF (≥5k); index must be **rebuilt** after bulk changes (no incremental update).
+- **DAZO:** HNSW uses full-vector distance (Qdrant/Milvus-like); IVF uses EAB 32-bit sketches; legacy graph uses predicate masks (8-bit). Filter config at build time for graph path only.
+- **Persistence:** Single-file binary term for Store and DAZO index; no WAL, no point-in-time recovery. Optional `persist_interval_sec` and `persist_after_batch` reduce data-loss window.
+- **Operational:** Single-node only; HTTP API has no auth or rate limiting; metrics and Telemetry exist but no built-in dashboards.
+
+**When to use**
+
+- **Good for:** Small/medium vector sets, exact or DAZO-accelerated k-NN (HNSW/IVF), filtered search, correctness-focused workloads.
+- **Not for:** Millions of vectors with sub-ms SLA, incremental index updates, or distributed deployment. For that, use pgvector, Qdrant, or Milvus.
 
 ---
 

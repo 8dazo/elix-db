@@ -12,6 +12,7 @@ defmodule ElixDb.Application do
       ElixDb.Metrics,
       {ElixDb.CollectionRegistry, [store: ElixDb.Store]},
       {ElixDb.Store, [registry: ElixDb.CollectionRegistry]},
+      {ElixDb.DazoIndex, []},
       {Plug.Cowboy, scheme: :http, plug: ElixDb.HttpRouter, options: [port: port]}
     ]
 

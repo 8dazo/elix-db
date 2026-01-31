@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-01-31
+
 ### Added
 
-- Search: batch Nx similarity (`Similarity.cosine_batch/2`, `dot_product_batch/2`, `l2_batch/2`) for faster exact k-NN; Store search uses batch APIs
-- HTTP: OpenAPI 3.0 spec at `GET /openapi.json`; `priv/openapi.json` documents all endpoints
-- Stress tests: `test/stress_test.exs` at 10k vectors (tag `:stress`); run with `mix test test/stress_test.exs` or exclude with `--exclude stress`
+- **HNSW-style multi-layer graph** (`ElixDb.Dazo.HnswGraph`): Qdrant/Milvus-like algorithm for n between full_scan_threshold and coarse_threshold (500–5k). Layer assignment, entry point, search_entry + search_on_level(ef); M, M0, ef_construct, ef. Full-vector distance for build and search.
+- **full_scan_threshold** (default 500): below this many vectors, no index is built; search uses brute-force (like Qdrant). Build removes index for that collection when n ≤ threshold.
+- **DazoIndex integration**: HNSW path (500–5k), IVF path (≥5k), legacy graph path; get_candidates uses HnswGraph.search when index has :hnsw.
+- **Nx batch re-rank**: Store rerank_and_format uses single cosine_batch/l2_batch/dot_product_batch for all DAZO candidates (HNSW, IVF, graph) instead of per-point similarity.
+- **build_workers** option (accepted; parallel build reserved for future).
+- Full benchmark script: `script/full_bench.exs` with `--dazo`, `--n`, `--json`; comparison table vs Qdrant/Milvus.
+- Stress tests: `test/stress_test.exs` at 10k vectors (IVF path); run with `mix test test/stress_test.exs` or exclude with `--exclude stress`.
 
 ## [0.2.0] - 2025-01-31
 
@@ -45,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Metrics module (operation timings); benchmark script
 - Unit tests, property-based tests (StreamData), verification tests (2k vectors, concurrent readers)
 
-[Unreleased]: https://github.com/8dazo/elix-db/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/8dazo/elix-db/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/8dazo/elix-db/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/8dazo/elix-db/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/8dazo/elix-db/releases/tag/v0.1.0

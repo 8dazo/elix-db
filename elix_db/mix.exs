@@ -2,7 +2,7 @@ defmodule ElixDb.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/8dazo/elix-db"
-  @version "0.2.0"
+  @version "0.3.0"
 
   def project do
     [
@@ -24,7 +24,7 @@ defmodule ElixDb.MixProject do
   end
 
   defp description do
-    "A small vector database in Elixir: collections, points (upsert/get/delete), exact k-NN search (cosine or L2), file persistence, and optional HTTP API."
+    "Elixir vector database: collections, points (upsert/get/delete), exact k-NN (cosine, L2, dot product), optional DAZO index (HNSW-style + IVF), Nx batch re-rank, file persistence, and optional HTTP API."
   end
 
   defp package do
