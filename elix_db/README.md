@@ -57,4 +57,4 @@ See the [project README](https://github.com/8dazo/elix-db) for HTTP API, benchma
 
 ## License
 
-MIT – see [LICENSE](LICENSE).
+MIT – see [LICENSE](https://github.com/8dazo/elix-db/blob/main/elix_db/LICENSE).
